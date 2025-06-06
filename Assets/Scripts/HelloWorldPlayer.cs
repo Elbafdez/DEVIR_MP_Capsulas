@@ -9,28 +9,23 @@ namespace HelloWorld
         public float moveSpeed = 5f;
         private Renderer _renderer;
 
-        // Constantes de zona (ajustado al eje X)
         private const float Team1ZoneXMax = -2f;
         private const float Team2ZoneXMin = 2f;
-
-        // Máximo jugadores por equipo
         private const int MaxPlayersPerTeam = 2;
 
-        // Estado actual del jugador
         private enum TeamZone { None, Team1, Team2 }
         private TeamZone currentZone = TeamZone.None;
 
-        // Colores asignables
         private static List<Color> team1Colors = new List<Color> { Color.red, new Color(1f, 0.5f, 0f), Color.magenta };
         private static List<Color> team2Colors = new List<Color> { Color.blue, new Color(0.5f, 0f, 1f), new Color(0.5f, 0.5f, 1f) };
 
         private static Dictionary<Color, ulong> usedColors = new Dictionary<Color, ulong>();
-
-        // Jugadores actuales por equipo
         private static HashSet<ulong> team1Players = new HashSet<ulong>();
         private static HashSet<ulong> team2Players = new HashSet<ulong>();
 
         private NetworkVariable<Color> playerColor = new NetworkVariable<Color>(Color.white, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+
+        private Vector3 lastValidPosition; // ✅ Última posición permitida
 
         public override void OnNetworkSpawn()
         {
@@ -60,23 +55,37 @@ namespace HelloWorld
         private void Update()
         {
             if (!IsOwner) return;
-
+        
             float moveX = Input.GetAxis("Horizontal");
             float moveZ = Input.GetAxis("Vertical");
-            Vector3 move = new Vector3(moveX, 0f, moveZ) * moveSpeed * Time.deltaTime;
-
-            Vector3 targetPos = transform.position + move;
-
+            Vector3 move = new Vector3(moveX, 0f, moveZ);
+        
+            if (move.magnitude > 0f)
+            {
+                TryMoveServerRpc(move * moveSpeed * Time.deltaTime);
+            }
+        
+            if (Input.GetKeyDown(KeyCode.M))
+            {
+                RequestMoveToStartServerRpc();
+            }
+        }
+        
+        [Rpc(SendTo.Server)]
+        private void TryMoveServerRpc(Vector3 delta)
+        {
+            Vector3 targetPos = transform.position + delta;
+        
             if (IsMoveAllowed(targetPos))
             {
                 transform.position = targetPos;
-
-                RequestZoneCheckServerRpc(transform.position);
+                lastValidPosition = transform.position;
+                CheckZoneChange(targetPos);
             }
-
-            if (Input.GetKeyDown(KeyCode.M))
+            else
             {
-                MoveToStart();
+                // Opcional: devolver al jugador a la última posición válida
+                transform.position = lastValidPosition;
             }
         }
 
@@ -86,20 +95,13 @@ namespace HelloWorld
 
             if (x < Team1ZoneXMax)
             {
-                // Zona equipo 1
-                if (team1Players.Count >= MaxPlayersPerTeam && !team1Players.Contains(OwnerClientId))
-                {
-                    return false;
-                }
+                return team1Players.Contains(OwnerClientId) || team1Players.Count < MaxPlayersPerTeam;
             }
             else if (x > Team2ZoneXMin)
             {
-                // Zona equipo 2
-                if (team2Players.Count >= MaxPlayersPerTeam && !team2Players.Contains(OwnerClientId))
-                {
-                    return false;
-                }
+                return team2Players.Contains(OwnerClientId) || team2Players.Count < MaxPlayersPerTeam;
             }
+
             return true;
         }
 
@@ -117,7 +119,10 @@ namespace HelloWorld
 
         public void MoveToStart()
         {
-            transform.position = GetRandomCentralPosition();
+            Vector3 start = GetRandomCentralPosition();
+            transform.position = start;
+            lastValidPosition = start;
+
             playerColor.Value = Color.white;
             ReleaseColorAndTeam();
             currentZone = TeamZone.None;
@@ -135,7 +140,24 @@ namespace HelloWorld
 
             if (newZone != currentZone)
             {
-                HandleZoneChange(newZone);
+                if (CanEnterZone(newZone))
+                {
+                    HandleZoneChange(newZone);
+                }
+                // ❌ Si no puede entrar, el cliente ya fue "rebotado" — no cambia zona
+            }
+        }
+
+        private bool CanEnterZone(TeamZone zone)
+        {
+            switch (zone)
+            {
+                case TeamZone.Team1:
+                    return team1Players.Contains(OwnerClientId) || team1Players.Count < MaxPlayersPerTeam;
+                case TeamZone.Team2:
+                    return team2Players.Contains(OwnerClientId) || team2Players.Count < MaxPlayersPerTeam;
+                default:
+                    return true;
             }
         }
 
@@ -174,7 +196,7 @@ namespace HelloWorld
                     return;
                 }
             }
-            // Si no hay color disponible, deja blanco o algún color por defecto
+
             playerColor.Value = Color.white;
         }
 
