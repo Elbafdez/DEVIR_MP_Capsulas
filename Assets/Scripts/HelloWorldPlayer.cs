@@ -13,6 +13,9 @@ namespace HelloWorld
         private const float Team1ZoneXMax = -2f;
         private const float Team2ZoneXMin = 2f;
 
+        // Máximo jugadores por equipo
+        private const int MaxPlayersPerTeam = 2;
+
         // Estado actual del jugador
         private enum TeamZone { None, Team1, Team2 }
         private TeamZone currentZone = TeamZone.None;
@@ -22,6 +25,10 @@ namespace HelloWorld
         private static List<Color> team2Colors = new List<Color> { Color.blue, new Color(0.5f, 0f, 1f), new Color(0.5f, 0.5f, 1f) };
 
         private static Dictionary<Color, ulong> usedColors = new Dictionary<Color, ulong>();
+
+        // Jugadores actuales por equipo
+        private static HashSet<ulong> team1Players = new HashSet<ulong>();
+        private static HashSet<ulong> team2Players = new HashSet<ulong>();
 
         private NetworkVariable<Color> playerColor = new NetworkVariable<Color>(Color.white, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
@@ -42,6 +49,14 @@ namespace HelloWorld
             SetColor(current);
         }
 
+        private void SetColor(Color color)
+        {
+            if (_renderer == null)
+                _renderer = GetComponent<Renderer>();
+
+            _renderer.material.color = color;
+        }
+
         private void Update()
         {
             if (!IsOwner) return;
@@ -49,15 +64,43 @@ namespace HelloWorld
             float moveX = Input.GetAxis("Horizontal");
             float moveZ = Input.GetAxis("Vertical");
             Vector3 move = new Vector3(moveX, 0f, moveZ) * moveSpeed * Time.deltaTime;
-            transform.Translate(move);
+
+            Vector3 targetPos = transform.position + move;
+
+            if (IsMoveAllowed(targetPos))
+            {
+                transform.position = targetPos;
+
+                RequestZoneCheckServerRpc(transform.position);
+            }
 
             if (Input.GetKeyDown(KeyCode.M))
             {
-                if (IsServer) MoveToStart();
-                else RequestMoveToStartServerRpc();
+                MoveToStart();
             }
+        }
 
-            RequestZoneCheckServerRpc(transform.position);
+        private bool IsMoveAllowed(Vector3 targetPos)
+        {
+            float x = targetPos.x;
+
+            if (x < Team1ZoneXMax)
+            {
+                // Zona equipo 1
+                if (team1Players.Count >= MaxPlayersPerTeam && !team1Players.Contains(OwnerClientId))
+                {
+                    return false;
+                }
+            }
+            else if (x > Team2ZoneXMin)
+            {
+                // Zona equipo 2
+                if (team2Players.Count >= MaxPlayersPerTeam && !team2Players.Contains(OwnerClientId))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         [Rpc(SendTo.Server)]
@@ -76,7 +119,7 @@ namespace HelloWorld
         {
             transform.position = GetRandomCentralPosition();
             playerColor.Value = Color.white;
-            ReleaseColor();
+            ReleaseColorAndTeam();
             currentZone = TeamZone.None;
         }
 
@@ -84,12 +127,12 @@ namespace HelloWorld
         {
             float x = pos.x;
             TeamZone newZone = TeamZone.None;
-        
+
             if (x < Team1ZoneXMax)
                 newZone = TeamZone.Team1;
             else if (x > Team2ZoneXMin)
                 newZone = TeamZone.Team2;
-        
+
             if (newZone != currentZone)
             {
                 HandleZoneChange(newZone);
@@ -98,13 +141,18 @@ namespace HelloWorld
 
         private void HandleZoneChange(TeamZone newZone)
         {
-            ReleaseColor();
+            if (newZone == currentZone) return;
+
+            ReleaseColorAndTeam();
+
             switch (newZone)
             {
                 case TeamZone.Team1:
+                    team1Players.Add(OwnerClientId);
                     SetTeamColor(team1Colors);
                     break;
                 case TeamZone.Team2:
+                    team2Players.Add(OwnerClientId);
                     SetTeamColor(team2Colors);
                     break;
                 case TeamZone.None:
@@ -126,9 +174,11 @@ namespace HelloWorld
                     return;
                 }
             }
+            // Si no hay color disponible, deja blanco o algún color por defecto
+            playerColor.Value = Color.white;
         }
 
-        private void ReleaseColor()
+        private void ReleaseColorAndTeam()
         {
             List<Color> toRemove = new List<Color>();
             foreach (var kvp in usedColors)
@@ -142,14 +192,9 @@ namespace HelloWorld
             {
                 usedColors.Remove(color);
             }
-        }
 
-        private void SetColor(Color color)
-        {
-            if (_renderer == null)
-                _renderer = GetComponent<Renderer>();
-
-            _renderer.material.color = color;
+            team1Players.Remove(OwnerClientId);
+            team2Players.Remove(OwnerClientId);
         }
 
         private static Vector3 GetRandomCentralPosition()
