@@ -25,7 +25,7 @@ namespace HelloWorld
 
         private NetworkVariable<Color> playerColor = new NetworkVariable<Color>(Color.white, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
-        private Vector3 lastValidPosition; // ✅ Última posición permitida
+        private Vector3 lastValidPosition; // Última posición permitida
 
         public override void OnNetworkSpawn()
         {
@@ -55,27 +55,27 @@ namespace HelloWorld
         private void Update()
         {
             if (!IsOwner) return;
-        
+
             float moveX = Input.GetAxis("Horizontal");
             float moveZ = Input.GetAxis("Vertical");
             Vector3 move = new Vector3(moveX, 0f, moveZ);
-        
+
             if (move.magnitude > 0f)
             {
                 TryMoveServerRpc(move * moveSpeed * Time.deltaTime);
             }
-        
+
             if (Input.GetKeyDown(KeyCode.M))
             {
                 RequestMoveToStartServerRpc();
             }
         }
-        
+
         [Rpc(SendTo.Server)]
         private void TryMoveServerRpc(Vector3 delta)
         {
             Vector3 targetPos = transform.position + delta;
-        
+
             if (IsMoveAllowed(targetPos))
             {
                 transform.position = targetPos;
@@ -144,7 +144,7 @@ namespace HelloWorld
                 {
                     HandleZoneChange(newZone);
                 }
-                // ❌ Si no puede entrar, el cliente ya fue "rebotado" — no cambia zona
+                // Si no puede entrar, el cliente ya fue "rebotado" — no cambia zona
             }
         }
 
