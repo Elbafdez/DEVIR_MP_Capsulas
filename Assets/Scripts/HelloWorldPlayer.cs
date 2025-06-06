@@ -57,16 +57,19 @@ namespace HelloWorld
                 else RequestMoveToStartServerRpc();
             }
 
-            if (IsServer)
-            {
-                CheckZoneChange();
-            }
+            RequestZoneCheckServerRpc(transform.position);
         }
 
         [Rpc(SendTo.Server)]
         private void RequestMoveToStartServerRpc()
         {
             MoveToStart();
+        }
+
+        [Rpc(SendTo.Server)]
+        private void RequestZoneCheckServerRpc(Vector3 position)
+        {
+            CheckZoneChange(position);
         }
 
         public void MoveToStart()
@@ -77,16 +80,16 @@ namespace HelloWorld
             currentZone = TeamZone.None;
         }
 
-        private void CheckZoneChange()
+        private void CheckZoneChange(Vector3 pos)
         {
-            float x = transform.position.x;
+            float x = pos.x;
             TeamZone newZone = TeamZone.None;
-
+        
             if (x < Team1ZoneXMax)
                 newZone = TeamZone.Team1;
             else if (x > Team2ZoneXMin)
                 newZone = TeamZone.Team2;
-
+        
             if (newZone != currentZone)
             {
                 HandleZoneChange(newZone);
