@@ -11,7 +11,9 @@ namespace HelloWorld
 
         private const float Team1ZoneXMax = -2f;
         private const float Team2ZoneXMin = 2f;
-        private const int MaxPlayersPerTeam = 2;
+
+        // Cambiado a variable estática pública para poder modificarla en tiempo de ejecución
+        public static int MaxPlayersPerTeamStatic = 2;
 
         private enum TeamZone { None, Team1, Team2 }
         private TeamZone currentZone = TeamZone.None;
@@ -96,22 +98,27 @@ namespace HelloWorld
 
             if (x < Team1ZoneXMax)
             {
-                return team1Players.Contains(OwnerClientId) || team1Players.Count < MaxPlayersPerTeam;
+                return team1Players.Contains(OwnerClientId) || team1Players.Count < MaxPlayersPerTeamStatic;
             }
             else if (x > Team2ZoneXMin)
             {
-                return team2Players.Contains(OwnerClientId) || team2Players.Count < MaxPlayersPerTeam;
+                return team2Players.Contains(OwnerClientId) || team2Players.Count < MaxPlayersPerTeamStatic;
             }
 
             return true;
         }
 
         [ServerRpc]
-        private void RequestMoveToStartServerRpc(ServerRpcParams rpcParams = default)
+        public void RequestMoveToStartServerRpc(ServerRpcParams rpcParams = default)
         {
             if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
 
             MoveToStart();
+        }
+
+        public void RequestMoveToStart()
+        {
+            RequestMoveToStartServerRpc();
         }
 
         public void MoveToStart()
@@ -149,9 +156,9 @@ namespace HelloWorld
             switch (zone)
             {
                 case TeamZone.Team1:
-                    return team1Players.Contains(OwnerClientId) || team1Players.Count < MaxPlayersPerTeam;
+                    return team1Players.Contains(OwnerClientId) || team1Players.Count < MaxPlayersPerTeamStatic;
                 case TeamZone.Team2:
-                    return team2Players.Contains(OwnerClientId) || team2Players.Count < MaxPlayersPerTeam;
+                    return team2Players.Contains(OwnerClientId) || team2Players.Count < MaxPlayersPerTeamStatic;
                 default:
                     return true;
             }

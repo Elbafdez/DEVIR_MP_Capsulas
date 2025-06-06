@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace HelloWorld
 {
-    /// <summary>
-    /// Add this component to the same GameObject as
-    /// the NetworkManager component.
-    /// </summary>
     public class HelloWorldManager : MonoBehaviour
     {
         private NetworkManager m_NetworkManager;
@@ -19,7 +15,7 @@ namespace HelloWorld
         private void OnGUI()
         {
             GUILayout.BeginArea(new Rect(10, 10, 300, 300));
-        
+
             if (!m_NetworkManager.IsClient && !m_NetworkManager.IsServer)
             {
                 StartButtons();
@@ -27,28 +23,11 @@ namespace HelloWorld
             else
             {
                 StatusLabels();
-        
-                if (GUILayout.Button("Mover a inicio"))
-                {
-                    if (m_NetworkManager.IsServer)
-                    {
-                        // Mover todos los jugadores
-                        foreach (ulong uid in m_NetworkManager.ConnectedClientsIds)
-                        {
-                            var player = m_NetworkManager.SpawnManager.GetPlayerNetworkObject(uid)
-                                .GetComponent<HelloWorldPlayer>();
-                            player.MoveToStart();
-                        }
-                    }
-                    else
-                    {
-                        var player = m_NetworkManager.SpawnManager.GetLocalPlayerObject()
-                            .GetComponent<HelloWorldPlayer>();
-                        player.MoveToStart(); // El cliente pide moverse solo él
-                    }
-                }
+
+                // Método que controla botón y tecla M
+                MoverAInicioBoton();
             }
-        
+
             GUILayout.EndArea();
         }
 
@@ -61,11 +40,8 @@ namespace HelloWorld
 
         private void StatusLabels()
         {
-            var mode = m_NetworkManager.IsHost ?
-                "Host" : m_NetworkManager.IsServer ? "Server" : "Client";
-
-            GUILayout.Label("Transport: " +
-                m_NetworkManager.NetworkConfig.NetworkTransport.GetType().Name);
+            var mode = m_NetworkManager.IsHost ? "Host" : m_NetworkManager.IsServer ? "Server" : "Client";
+            GUILayout.Label("Transport: " + m_NetworkManager.NetworkConfig.NetworkTransport.GetType().Name);
             GUILayout.Label("Mode: " + mode);
         }
 
@@ -73,22 +49,22 @@ namespace HelloWorld
         {
             if (GUILayout.Button("Mover a inicio") || Input.GetKeyDown(KeyCode.M))
             {
-                if (m_NetworkManager.IsServer && !m_NetworkManager.IsClient)
+                if (m_NetworkManager.IsServer)
                 {
-                    // Ejecutar para todos los jugadores
+                    // El servidor pide a cada jugador que se mueva
                     foreach (ulong uid in m_NetworkManager.ConnectedClientsIds)
                     {
                         var player = m_NetworkManager.SpawnManager.GetPlayerNetworkObject(uid)
                             .GetComponent<HelloWorldPlayer>();
-                        player.MoveToStart();
+                        player.RequestMoveToStart();  // Llamada pública que invoca ServerRpc
                     }
                 }
                 else
                 {
-                    // Solo para el jugador local
-                    var playerObject = m_NetworkManager.SpawnManager.GetLocalPlayerObject();
-                    var player = playerObject.GetComponent<HelloWorldPlayer>();
-                    player.MoveToStart();
+                    // Cliente pide moverse solo él
+                    var localPlayer = m_NetworkManager.SpawnManager.GetLocalPlayerObject();
+                    var player = localPlayer.GetComponent<HelloWorldPlayer>();
+                    player.RequestMoveToStartServerRpc();
                 }
             }
         }
