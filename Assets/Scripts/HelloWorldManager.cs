@@ -45,19 +45,6 @@ namespace HelloWorld
             var mode = m_NetworkManager.IsHost ?
                 "Host" : m_NetworkManager.IsServer ? "Server" : "Client";
 
-            /*
-            var mode;
-            if (m_NetworkManager.IsHost){
-                mode = "Host";
-                } 
-            else if (m_NetworkManager.IsServer){
-                mode = "Server";
-                } 
-            else {
-                mode = "Client";
-                }
-            */
-
             GUILayout.Label("Transport: " +
                 m_NetworkManager.NetworkConfig.NetworkTransport.GetType().Name);
             GUILayout.Label("Mode: " + mode);
