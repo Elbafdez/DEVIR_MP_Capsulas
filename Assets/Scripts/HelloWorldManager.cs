@@ -19,6 +19,7 @@ namespace HelloWorld
         private void OnGUI()
         {
             GUILayout.BeginArea(new Rect(10, 10, 300, 300));
+        
             if (!m_NetworkManager.IsClient && !m_NetworkManager.IsServer)
             {
                 StartButtons();
@@ -26,10 +27,28 @@ namespace HelloWorld
             else
             {
                 StatusLabels();
-
-                SubmitNewPosition();
+        
+                if (GUILayout.Button("Mover a inicio"))
+                {
+                    if (m_NetworkManager.IsServer)
+                    {
+                        // Mover todos los jugadores
+                        foreach (ulong uid in m_NetworkManager.ConnectedClientsIds)
+                        {
+                            var player = m_NetworkManager.SpawnManager.GetPlayerNetworkObject(uid)
+                                .GetComponent<HelloWorldPlayer>();
+                            player.MoveToStart();
+                        }
+                    }
+                    else
+                    {
+                        var player = m_NetworkManager.SpawnManager.GetLocalPlayerObject()
+                            .GetComponent<HelloWorldPlayer>();
+                        player.MoveToStart(); // El cliente pide moverse solo él
+                    }
+                }
             }
-
+        
             GUILayout.EndArea();
         }
 
@@ -50,20 +69,26 @@ namespace HelloWorld
             GUILayout.Label("Mode: " + mode);
         }
 
-        private void SubmitNewPosition()
+        private void MoverAInicioBoton()
         {
-            if (GUILayout.Button(m_NetworkManager.IsServer ? "Move" : "Request Position Change"))
+            if (GUILayout.Button("Mover a inicio") || Input.GetKeyDown(KeyCode.M))
             {
                 if (m_NetworkManager.IsServer && !m_NetworkManager.IsClient)
                 {
+                    // Ejecutar para todos los jugadores
                     foreach (ulong uid in m_NetworkManager.ConnectedClientsIds)
-                        m_NetworkManager.SpawnManager.GetPlayerNetworkObject(uid).GetComponent<HelloWorldPlayer>().Move();
+                    {
+                        var player = m_NetworkManager.SpawnManager.GetPlayerNetworkObject(uid)
+                            .GetComponent<HelloWorldPlayer>();
+                        player.MoveToStart();
+                    }
                 }
                 else
                 {
+                    // Solo para el jugador local
                     var playerObject = m_NetworkManager.SpawnManager.GetLocalPlayerObject();
                     var player = playerObject.GetComponent<HelloWorldPlayer>();
-                    player.Move();
+                    player.MoveToStart();
                 }
             }
         }
