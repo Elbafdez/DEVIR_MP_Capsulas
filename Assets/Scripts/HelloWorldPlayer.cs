@@ -25,7 +25,7 @@ namespace HelloWorld
 
         private NetworkVariable<Color> playerColor = new NetworkVariable<Color>(Color.white, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
-        private Vector3 lastValidPosition; // Última posición permitida
+        private Vector3 lastValidPosition;
 
         public override void OnNetworkSpawn()
         {
@@ -71,9 +71,11 @@ namespace HelloWorld
             }
         }
 
-        [Rpc(SendTo.Server)]
-        private void TryMoveServerRpc(Vector3 delta)
+        [ServerRpc]
+        private void TryMoveServerRpc(Vector3 delta, ServerRpcParams rpcParams = default)
         {
+            if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
+
             Vector3 targetPos = transform.position + delta;
 
             if (IsMoveAllowed(targetPos))
@@ -84,7 +86,6 @@ namespace HelloWorld
             }
             else
             {
-                // Opcional: devolver al jugador a la última posición válida
                 transform.position = lastValidPosition;
             }
         }
@@ -105,15 +106,19 @@ namespace HelloWorld
             return true;
         }
 
-        [Rpc(SendTo.Server)]
-        private void RequestMoveToStartServerRpc()
+        [ServerRpc]
+        private void RequestMoveToStartServerRpc(ServerRpcParams rpcParams = default)
         {
+            if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
+
             MoveToStart();
         }
 
-        [Rpc(SendTo.Server)]
-        private void RequestZoneCheckServerRpc(Vector3 position)
+        [ServerRpc]
+        private void RequestZoneCheckServerRpc(Vector3 position, ServerRpcParams rpcParams = default)
         {
+            if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
+
             CheckZoneChange(position);
         }
 
@@ -144,7 +149,6 @@ namespace HelloWorld
                 {
                     HandleZoneChange(newZone);
                 }
-                // Si no puede entrar, el cliente ya fue "rebotado" — no cambia zona
             }
         }
 
