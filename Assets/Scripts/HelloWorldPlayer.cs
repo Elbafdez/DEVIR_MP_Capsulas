@@ -114,14 +114,6 @@ namespace HelloWorld
             MoveToStart();
         }
 
-        [ServerRpc]
-        private void RequestZoneCheckServerRpc(Vector3 position, ServerRpcParams rpcParams = default)
-        {
-            if (rpcParams.Receive.SenderClientId != OwnerClientId) return;
-
-            CheckZoneChange(position);
-        }
-
         public void MoveToStart()
         {
             Vector3 start = GetRandomCentralPosition();
